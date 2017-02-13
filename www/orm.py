@@ -1,32 +1,35 @@
+import asyncio
+import aiomysql
+
 @asyncio.coroutine
 #创建一个全局变量__pool，当需要连接数据库的时候可以直接从__pool中获取连接
 def create_pool(loop, **kw):
-	logging.info('create database connection pool...')
-	global __pool
-	__pool=yield from aiomysql.create_pool(
-		host=kw.get('host','localhost'),
-		port=kw.get('port',3306),
-		user=kw['user'],
-		password=kw['password'],
-		db=kw['db'],
-		charset=kw.get('charset','utf8'),
-		autocommit=kw.get('autocommit',True),
-		#最大连接数10 ，最小连接数1
-		maxsize=kw.get('maxsize',10),
-		minsize=kw.get('minsize',1),
-		loop=loop
-	)
+    logging.info('create database connection pool...')
+    global __pool
+    __pool=yield from aiomysql.create_pool(
+        host=kw.get('host','localhost'),
+        port=kw.get('port',3306),
+        user=kw['user'],
+        password=kw['password'],
+        db=kw['db'],
+        charset=kw.get('charset','utf8'),
+        autocommit=kw.get('autocommit',True),
+        #最大连接数10 ，最小连接数1
+        maxsize=kw.get('maxsize',10),
+        minsize=kw.get('minsize',1),
+        loop=loop
+    )
 
 @asyncio.coroutine
 #将执行sql的代码封装进select函数，调用的时候只要传入sql，和sql需要的一些参数值
 def seclect(sql, args, size=None):
-	log(sql,args)
-	global __pool
-	#从连接池中获取一个数据库连接
-	with(yield from __pool)as conn:
-		cur=yield from conn.cursor(aiomysql.DictCursor)
-		#把sql中的字符串占位符？换成python的占位符%s
-		yield from cur.execute(sql.replqce('?', '%s'), args or ())
+    log(sql,args)
+    global __pool
+    #从连接池中获取一个数据库连接
+    with(yield from __pool)as conn:
+        cur=yield from conn.cursor(aiomysql.DictCursor)
+        #把sql中的字符串占位符？换成python的占位符%s
+        yield from cur.execute(sql.replqce('?', '%s'), args or ())
         if size:
             rs = yield from cur.fetchmany(size)
         else:
@@ -37,7 +40,7 @@ def seclect(sql, args, size=None):
 
 @asyncio.coroutine
 def execute(sql, args): 
-	#INSERT、UPDATE、DELETE
+    #INSERT、UPDATE、DELETE
     log(sql)
     with (yield from __pool) as conn:
         try:
@@ -142,8 +145,8 @@ class Model(dict, metaclass=ModelMetaclass):
     @classmethod
     #根据WHERE条件查找
     async def findAll(cls, where=None, args=None, **kw):
-    	' find objects by where clause. '
-        sql = [cls.__select__]
+        ' find objects by where clause. '
+        sql=[cls.__select__]
         if where:
             sql.append('where')
             sql.append(where)
@@ -171,7 +174,7 @@ class Model(dict, metaclass=ModelMetaclass):
     @classmethod
     #根据WHERE,SELECT条件查找，返回数字
     async def findNumber(cls, selectField, where=None, args=None):
-    	' find number by select and where. '
+        ' find number by select and where. '
         sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)]
         if where:
             sql.append('where')
@@ -193,7 +196,7 @@ class Model(dict, metaclass=ModelMetaclass):
 
     @asyncio.coroutine
     async def update(self):
-    	args = list(map(self.getValue, self.__fields__))
+        args = list(map(self.getValue, self.__fields__))
         args.append(self.getValue(self.__primary_key__))
         rows = await execute(self.__update__, args)
         if rows != 1:
@@ -201,7 +204,7 @@ class Model(dict, metaclass=ModelMetaclass):
 
     @asyncio.coroutine
     async def remove(self):
-    	args = [self.getValue(self.__primary_key__)]
+        args = [self.getValue(self.__primary_key__)]
         rows = await execute(self.__delete__, args)
         if rows != 1:
             logging.warn('failed to remove by primary key: affected rows: %s' % rows)
